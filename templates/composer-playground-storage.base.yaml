@@ -1,0 +1,32 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: composer-pv
+  labels:
+    type: local
+    name: composer
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: /opt/share/composer
+    server: $nfsServer
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  namespace: org1
+  name: composer-pvc
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      name: composer

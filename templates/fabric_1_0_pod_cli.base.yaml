@@ -1,0 +1,129 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: $artifactsNamepv
+  labels:
+    type: local
+    name: $artifactsName
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: /opt/share/channel-artifacts
+    server: $nfsServer
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: $artifactsNamepvc
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      name: $artifactsName
+
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: cli-pv
+  labels:
+    type: local
+    name: cli-pv
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: /opt/share
+    server: $nfsServer
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: cli-pvc
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      name: cli-pv
+---
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+   name: $name
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: cli
+    spec:
+      volumes:
+        - name: clis
+          persistentVolumeClaim:
+            claimName: cli-pvc
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: $artifactsNamepvc
+        - name: dockersocket
+          hostPath:
+            path: /var/run
+      containers:
+        - name: $name
+          image:  hyperledger/fabric-tools:x86_64-1.0.3
+          env:
+            - name: CORE_PEER_TLS_ENABLED
+              value: "false"
+            - name: CORE_PEER_TLS_CERT_FILE
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0.org1/tls/server.crt
+            - name: CORE_PEER_TLS_KEY_FILE
+              value: opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0.org1/tls/server.key
+            - name: CORE_PEER_TLS_ROOTCERT_FILE
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/peers/peer0.org1/tls/ca.crt
+            - name: CORE_VM_ENDPOINT
+              value: unix:///host/var/run/docker.sock
+            - name: GOPATH
+              value: /opt/gopath
+            - name: CORE_LOGGING_LEVEL
+              value: DEBUG
+            - name: CORE_PEER_ID
+              value: $name
+            - name: CORE_PEER_ADDRESS
+              value: $peerAddress
+            - name: CORE_PEER_LOCALMSPID
+              value: $mspid
+            - name: CORE_PEER_MSPCONFIGPATH
+              value: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1/users/Admin@org1/msp
+          workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+          command: [ "/bin/bash", "-c", "--" ]
+          args: [ "while true; do sleep 30; done;" ]
+          volumeMounts:
+            - mountPath: /host/var/run
+              name: dockersocket
+            - mountPath: /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto
+              name: clis
+              subPath: crypto-config
+            - mountPath: /opt/gopath/src/github.com/hyperledger/fabric/examples/chaincode/go
+              name: clis
+              subPath: chaincode
+            - mountPath: /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
+              name: artifacts

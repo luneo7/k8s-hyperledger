@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: $org
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: $pvName
+  labels:
+    type: local
+    name: $org
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: $path
+    server: $nfsServer
+---
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  namespace: $org
+  name: $pvcName
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      name: $org

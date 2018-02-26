@@ -1,0 +1,80 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: org1
+  name: composer-rest-server
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+       app: hyperledger
+       role: composer-rest-server
+       org: org1
+    spec:
+      containers:
+      - name: composer-rest-server
+        image: hyperledger/composer-rest-server:0.13.2
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: COMPOSER_CONNECTION_PROFILE
+          value: hlfv1
+        - name: COMPOSER_BUSINESS_NETWORK
+          value: #NAMEOFTHENETWORK
+        - name: COMPOSER_ENROLLMENT_ID
+          value: admin
+        - name: COMPOSER_ENROLLMENT_SECRET
+          value: adminpw
+        - name: COMPOSER_NAMESPACES
+          value: never
+        - name: COMPOSER_CONFIG
+          value: >
+            {
+              "defaultConnectionProfile": "hlfv1",
+              "connectionProfiles": {
+                "hlfv1": {
+                  "type": "hlfv1",
+                  "orderers": [ "grpc://orderer.orderer:7050" ],
+                  "ca": "http://ca.org1:7054",
+                  "peers": [
+                      {
+                          "requestURL": "grpc://peer0.org1:7051",
+                          "eventURL": "grpc://peer0.org1:7053"
+                      }
+                  ],
+                  "keyValStore": "/home/composer/.hfc-key-store",
+                  "channel": "businesschannel",
+                  "globalcert": "",
+                  "mspID": "Org1MSP",
+                  "timeout": "300"
+                }
+              },
+              "credentials": {
+                "hlfv1": {
+                  "PeerAdmin": "notneeded",
+                  "admin": "adminpw"
+                }
+              }
+            }
+        ports:
+          - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: org1
+  name: composer-rest-server-service
+  labels:
+    run: composer-rest-server-service
+spec:
+  type: NodePort
+  selector:
+    app: hyperledger
+    role: composer-rest-server
+    org: org1
+  clusterIP: 10.0.0.69
+  ports:
+  - protocol: TCP
+    port: 3000
+    nodePort: 31081
+    name: http

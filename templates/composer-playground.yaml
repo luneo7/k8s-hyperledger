@@ -1,0 +1,78 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: org1
+  name: composer-playground
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+       app: hyperledger
+       role: composer-playground
+       org: org1
+    spec:
+      volumes:
+      - name: composer-credentials
+        persistentVolumeClaim:
+          claimName: composer-pvc
+      containers:
+      - name: composer-playground
+        image: hyperledger/composer-playground:0.13.2
+        env:
+        - name: COMPOSER_CONFIG
+          value: >
+            {
+                "cards": [{
+                        "metadata": {
+                            "version": 1,
+                            "userName": "PeerAdmin",
+                            "enrollmentSecret": "NOTUSED",
+                            "roles": [
+                                "PeerAdmin",
+                                "ChannelAdmin"
+                            ]
+                        },
+                        "connectionProfile": {
+                            "name": "hlfv1",
+                            "description": "Hyperledger Fabric v1.0",
+                            "type": "hlfv1",
+                            "keyValStore": "/home/composer/.hfc-key-store",
+                            "timeout": 300,
+                            "orderers": [ "grpc://orderer.orderer:7050" ],
+                            "channel": "businesschannel",
+                            "globalcert": "",
+                            "mspID": "Org1MSP",
+                            "ca": "http://ca.org1:7054",
+                            "peers": [
+                                {
+                                    "requestURL": "grpc://peer0.org1:7051",
+                                    "eventURL": "grpc://peer0.org1:7053"
+                                }
+                            ]
+                        },
+                        "credentials": null
+                    }]
+            }
+        volumeMounts:
+        - name: composer-credentials
+          mountPath: /home/composer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: org1
+  name: composer-playground-service
+  labels:
+    run: composer-playground-service
+spec:
+  type: NodePort
+  selector:
+    app: hyperledger
+    role: composer-playground
+    org: org1
+  ports:
+  - protocol: TCP
+    port: 8080
+    nodePort: 31080
+    name: http

@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: org1
+  name: composer-identity-import
+spec:
+  restartPolicy: "Never"
+  volumes:
+  - name: composer-credentials
+    persistentVolumeClaim:
+      claimName: composer-pvc
+  - name: shared
+    persistentVolumeClaim:
+      claimName: org1-pvc
+  containers:
+  - name: composer-identity-import
+    image: hyperledger/composer-cli:0.13.2
+    command: ["sh", "-c", "composer identity import -p hlfv1 -u PeerAdmin -c /shared/Admin@org1/msp/signcerts/Admin@org1-cert.pem -k /shared/Admin@org1/msp/keystore/$(ls /shared/Admin@org1/msp/keystore/)"]
+    env:
+    - name: COMPOSER_CONFIG
+      value: >
+        {
+          "defaultConnectionProfile": "hlfv1",
+          "connectionProfiles": {
+            "hlfv1": {
+              "type": "hlfv1",
+              "orderers": [ "grpc://orderer.orderer:7050" ],
+              "ca": "http://ca.org1:7054",
+              "peers": [
+                  {
+                      "requestURL": "grpc://peer0.org1:7051",
+                      "eventURL": "grpc://peer0.org1:7053"
+                  }
+              ],
+              "keyValStore": "/home/composer/.hfc-key-store",
+              "channel": "businesschannel",
+              "globalcert": "",
+              "mspID": "Org1MSP",
+              "timeout": "300"
+            }
+          },
+          "credentials": {
+            "hlfv1": {
+              "PeerAdmin": "notneeded",
+              "admin": "adminpw"
+            }
+          }
+        }
+    volumeMounts:
+    - name: composer-credentials
+      mountPath: /home/composer
+    - name: shared
+      subPath: users
+      mountPath: /shared
